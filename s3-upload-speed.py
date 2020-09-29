@@ -37,6 +37,8 @@ name for upload test')
 
 @click.option('--loglevel', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
 
+@click.option('--csvfile', default='', help='If this option is given a filename it will generate a CSV file')
+
 def run_test(size, iter, bucket, loglevel):
     log_config(logging, loglevel)
 
@@ -46,27 +48,25 @@ def run_test(size, iter, bucket, loglevel):
     logging.info("Files size parameter: %s", file_size)
     logging.info("Iterations parameter: %s", str(iter))
     logging.info('S3 Bucket: %s', bucket)
+
+    normal_upload_times = []
+    accel_upload_times = []
     
     #Generate Files
-    print("Generating " + str(iter) + " Test Files")
+    gen_files(file_size, iter)
+
+    #Test Transfers
     x = range(0, iter)
     for n in x:
         new_file_name = 'test_' + str(n)
-        generate_big_random_bin_file(new_file_name, file_size)
 
-    #Test Transfers
-    for n in x:
-        new_file_name = 'test_' + str(n)
         #Standard S3
-        #Transfer
-        upload_s3(new_file_name, bucket)
-
-
+        upload_time = upload_s3(new_file_name, bucket)
+        normal_upload_times.append(upload_time)
 
         #Acclerated S3
-        #Transfer
-
-        #Delete both non-accelerated and accelerated file from bucket.
+        upload_time = upload_s3(new_file_name, bucket, use_accel=True)
+        accel_upload_times.append(upload_time)
 
 
     #Delete Files
@@ -76,23 +76,39 @@ def run_test(size, iter, bucket, loglevel):
         os.remove(new_file_name)
 
     logging.info("End Time: %s", time.perf_counter())
+    print(normal_upload_times)
+    print(accel_upload_times)
 
 def upload_s3(filename, s3_bucket, use_accel=False):
-    s3 = boto3.client('s3', aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET, config=Config(s3={'use_accelerate_endpoint': False}))
+    logging.info(use_accel)
+    s3 = boto3.client('s3', aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET, config=Config(s3={'use_accelerate_endpoint': use_accel}))
+    
     try:
         start_time = time.perf_counter()
         response = s3.upload_file(filename, s3_bucket, filename, Callback=ProgressPercentage(filename))
         end_time = time.perf_counter()
+        s3.delete_object(Bucket=s3_bucket, Key=filename)
     except ClientError as e:
         logging.error(e)
 
-    print(": Upload time(s): " + str(end_time-start_time))
+    if use_accel:
+        accel_status = ' (accelerated)'
+    else:
+        accel_status = ' (normal)'
 
-def gen_files():
+    print(": Upload time: " + str(end_time-start_time) + "s" + accel_status)
+
+    return(end_time-start_time)
+
+def gen_files(size, iter):
     logging.info("Generating Files")
+    x = range(0, iter)
+    for n in x:
+        new_file_name = 'test_' + str(n)
+        generate_random_bin_file(new_file_name, size)
 
 def get_size(file_size):
-    unit = file_size[-1]
+    unit = file_size[-1].lower()
     significand = int(file_size[:-1])
     return [significand, unit]
 
@@ -102,19 +118,17 @@ def log_config(logger, log_level):
         raise ValueError('Invalid log level: %s' % log_level)
     logger.basicConfig(level=numeric_level)
 
-def generate_big_random_bin_file(filename,size):
+def generate_random_bin_file(filename, size):
     """
-    generate big binary file with the specified size in bytes
+    generate binary file with the specified size in bytes
     :param filename: the filename
     :param size: the size in bytes
     :return:void
     """
-    import os 
     with open('%s'%filename, 'wb') as fout:
         fout.write(os.urandom(size)) #1
 
-    print('big random binary file with size %f generated ok'%size)
-    pass
+    logging.info('Generated file %s with %f bytes', filename, size)
 
 class ProgressPercentage(object):
 
