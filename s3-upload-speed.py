@@ -6,6 +6,8 @@ import click
 import logging
 import threading
 
+from dotenv import load_dotenv
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 units_dict = {
@@ -13,6 +15,10 @@ units_dict = {
     'm':1048576,
     'g':1073741824
 }
+
+load_dotenv()
+AWS_KEY = os.getenv("AWS_ACCESS_KEY")
+AWS_SECRET = os.getenv("AWS_SECRET")
 
 
 @click.command()
@@ -29,17 +35,17 @@ take time to generate')
 @click.option('--bucket', default='p2vptpm-lcharnley-cenpro-12736', help='Name of Amazon S3 Bucket \
 name for upload test')
 
-@click.option('--loglevel', default='DEBUG', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
+@click.option('--loglevel', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
 
 def run_test(size, iter, bucket, loglevel):
     log_config(logging, loglevel)
 
     file_size = get_size(size)[0]*units_dict[get_size(size)[1]]
 
-    logging.debug("Start Time: %s", time.perf_counter())
-    logging.debug("Files size parameter: %s", file_size)
-    logging.debug("Iterations parameter: %s", str(iter))
-    logging.debug('S3 Bucket: %s', bucket)
+    logging.info("Start Time: %s", time.perf_counter())
+    logging.info("Files size parameter: %s", file_size)
+    logging.info("Iterations parameter: %s", str(iter))
+    logging.info('S3 Bucket: %s', bucket)
     
     #Generate Files
     print("Generating " + str(iter) + " Test Files")
@@ -50,16 +56,17 @@ def run_test(size, iter, bucket, loglevel):
 
     #Test Transfers
     for n in x:
+        new_file_name = 'test_' + str(n)
         #Standard S3
-            #Timed Transfer
+        #Transfer
+        upload_s3(new_file_name, bucket)
 
 
-            #Delete file from Bucket
 
         #Acclerated S3
-            #Timed Transfer
+        #Transfer
 
-            #Delete file from Bucket
+        #Delete both non-accelerated and accelerated file from bucket.
 
 
     #Delete Files
@@ -68,7 +75,18 @@ def run_test(size, iter, bucket, loglevel):
         print("Removing " + new_file_name)
         os.remove(new_file_name)
 
-    logging.debug("End Time: %s", time.perf_counter())
+    logging.info("End Time: %s", time.perf_counter())
+
+def upload_s3(filename, s3_bucket, use_accel=False):
+    s3 = boto3.client('s3', aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET, config=Config(s3={'use_accelerate_endpoint': False}))
+    try:
+        start_time = time.perf_counter()
+        response = s3.upload_file(filename, s3_bucket, filename, Callback=ProgressPercentage(filename))
+        end_time = time.perf_counter()
+    except ClientError as e:
+        logging.error(e)
+
+    print(": Upload time(s): " + str(end_time-start_time))
 
 def gen_files():
     logging.info("Generating Files")
@@ -97,7 +115,6 @@ def generate_big_random_bin_file(filename,size):
 
     print('big random binary file with size %f generated ok'%size)
     pass
-
 
 class ProgressPercentage(object):
 
