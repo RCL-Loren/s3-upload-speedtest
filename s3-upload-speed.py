@@ -89,12 +89,11 @@ def run_test(size, iter, bucket, loglevel, csvfilename):
     rows = zip(normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed)
 
     if csvfilename:
-        with open(csvfilename, 'w') as csvfile:
+        with open(csvfilename, 'w', newline='\n', encoding='utf-8') as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(('Normal', 'Acclerated', 'Normal Speed Mbps', 'Accel Speed Mbps'))
             for row in rows:
                 csvwriter.writerow(row)
-                print(row)
         csvfile.close()
 
 
