@@ -6,6 +6,7 @@ import boto3
 import click
 import logging
 import threading
+import statistics
 
 from dotenv import load_dotenv
 from botocore.config import Config
@@ -68,13 +69,13 @@ def run_test(size, iter, bucket, loglevel, csvfilename):
         normal_upload_times.append(upload_time)
         mb = file_size / units_dict['m']
         normal_upload_speed.append((mb/upload_time))
-        logging.info("Upload speed: %s Mbps", (mb/upload_time))
+        logging.info("Upload speed: %s MB/s", (mb/upload_time))
 
         #Acclerated S3
         upload_time = upload_s3(new_file_name, bucket, use_accel=True)
         accel_upload_times.append(upload_time)
         accel_upload_speed.append((mb/upload_time))
-        logging.info("Upload speed: %s Mbps", (mb/upload_time))
+        logging.info("Upload speed: %s MB/s", (mb/upload_time))
 
     #Delete Files
     for n in x:
@@ -83,19 +84,31 @@ def run_test(size, iter, bucket, loglevel, csvfilename):
         os.remove(new_file_name)
 
     logging.info("End Time: %s", time.perf_counter())
-    print(normal_upload_times)
-    print(accel_upload_times)
 
-    rows = zip(normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed)
 
-    if csvfilename:
-        with open(csvfilename, 'w', newline='\n', encoding='utf-8') as csvfile:
+    summary(size,iter,normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed, csvfilename)
+
+def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_file):
+    
+    #Descriptive Statistics
+    print('\nResults Summary')
+    print('File size: {} bytes'.format(size))
+    print('Number of Runs: {}'.format(runs))
+    print('Average Time (s) (Normal): {}'.format(statistics.mean(norm_times)))
+    print('Average Time (s) (Accelerated): {}'.format(statistics.mean(accel_times)))
+    print('Average Speed (MB/s) (Normal): {}'.format(statistics.mean(norm_speed)))
+    print('Average Speed (MB/s) (Accelerated): {}'.format(statistics.mean(accel_speed)))
+    
+    rows = zip(norm_times, accel_times, norm_speed, accel_speed)
+
+    #Output times and speeds to CSV File
+    if csv_file:
+        with open(csv_file, 'w', newline='\n', encoding='utf-8') as csvfile:
             csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(('Normal', 'Acclerated', 'Normal Speed Mbps', 'Accel Speed Mbps'))
+            csvwriter.writerow(('Normal', 'Acclerated', 'Normal Speed MB/s', 'Accel Speed MB/s'))
             for row in rows:
                 csvwriter.writerow(row)
         csvfile.close()
-
 
 
 def upload_s3(filename, s3_bucket, use_accel=False):
