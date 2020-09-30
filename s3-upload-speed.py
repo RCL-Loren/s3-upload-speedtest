@@ -1,5 +1,6 @@
 import os
 import sys
+import csv
 import time
 import boto3
 import click
@@ -37,9 +38,9 @@ name for upload test')
 
 @click.option('--loglevel', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
 
-@click.option('--csvfile', default='', help='If this option is given a filename it will generate a CSV file')
+@click.option('--csvfilename', default='', help='If this option is given a filename it will generate a CSV file')
 
-def run_test(size, iter, bucket, loglevel):
+def run_test(size, iter, bucket, loglevel, csvfilename):
     log_config(logging, loglevel)
 
     file_size = get_size(size)[0]*units_dict[get_size(size)[1]]
@@ -51,6 +52,8 @@ def run_test(size, iter, bucket, loglevel):
 
     normal_upload_times = []
     accel_upload_times = []
+    normal_upload_speed = []
+    accel_upload_speed = []
     
     #Generate Files
     gen_files(file_size, iter)
@@ -63,11 +66,15 @@ def run_test(size, iter, bucket, loglevel):
         #Standard S3
         upload_time = upload_s3(new_file_name, bucket)
         normal_upload_times.append(upload_time)
+        mb = file_size / units_dict['m']
+        normal_upload_speed.append((mb/upload_time))
+        logging.info("Upload speed: %s Mbps", (mb/upload_time))
 
         #Acclerated S3
         upload_time = upload_s3(new_file_name, bucket, use_accel=True)
         accel_upload_times.append(upload_time)
-
+        accel_upload_speed.append((mb/upload_time))
+        logging.info("Upload speed: %s Mbps", (mb/upload_time))
 
     #Delete Files
     for n in x:
@@ -79,8 +86,20 @@ def run_test(size, iter, bucket, loglevel):
     print(normal_upload_times)
     print(accel_upload_times)
 
+    rows = zip(normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed)
+
+    if csvfilename:
+        with open(csvfilename, 'w') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(('Normal', 'Acclerated', 'Normal Speed Mbps', 'Accel Speed Mbps'))
+            for row in rows:
+                csvwriter.writerow(row)
+                print(row)
+        csvfile.close()
+
+
+
 def upload_s3(filename, s3_bucket, use_accel=False):
-    logging.info(use_accel)
     s3 = boto3.client('s3', aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET, config=Config(s3={'use_accelerate_endpoint': use_accel}))
     
     try:
