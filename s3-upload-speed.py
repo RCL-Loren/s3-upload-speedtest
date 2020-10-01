@@ -41,7 +41,10 @@ name for upload test')
 
 @click.option('--csvfilename', default='', help='If this option is given a filename it will generate a CSV file')
 
-def run_test(size, iter, bucket, loglevel, csvfilename):
+@click.option('--csvsummaryfilename', default='', help='If this option is given a filename \
+it will generate a CSV file to which results of multiple runs are appended if run repeatedly with the same file name')
+
+def run_test(size, iter, bucket, loglevel, csvfilename, csvsummaryfilename):
     log_config(logging, loglevel)
 
     file_size = get_size(size)[0]*units_dict[get_size(size)[1]]
@@ -86,9 +89,9 @@ def run_test(size, iter, bucket, loglevel, csvfilename):
     logging.info("End Time: %s", time.perf_counter())
 
 
-    summary(size,iter,normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed, csvfilename)
+    summary(size,iter,normal_upload_times, accel_upload_times, normal_upload_speed, accel_upload_speed, csvfilename, csvsummaryfilename)
 
-def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_file):
+def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_file, csvsummaryfilename):
     
     #Descriptive Statistics
     print('\nResults Summary')
@@ -98,6 +101,20 @@ def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_fi
     print('Average Time (s) (Accelerated): {}'.format(statistics.mean(accel_times)))
     print('Average Speed (MB/s) (Normal): {}'.format(statistics.mean(norm_speed)))
     print('Average Speed (MB/s) (Accelerated): {}'.format(statistics.mean(accel_speed)))
+
+    #Output Descriptive Stats to CSV
+    if csv_file:
+        if os.path.isfile(csvsummaryfilename):
+            with open(csvsummaryfilename, 'a', newline='\n', encoding='utf-8') as csvfile:
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times)))
+            csvfile.close()
+        else:
+            with open(csvsummaryfilename, 'a', newline='\n', encoding='utf-8') as csvfile:
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow(('File Size','Speed (MB/s) Normal', 'Speed (MB/s) Acclerated', 'Time (s) Normal', 'Time (s) Accelerated'))
+                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times)))
+            csvfile.close()
     
     rows = zip(norm_times, accel_times, norm_speed, accel_speed)
 
