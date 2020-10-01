@@ -107,13 +107,13 @@ def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_fi
         if os.path.isfile(csvsummaryfilename):
             with open(csvsummaryfilename, 'a', newline='\n', encoding='utf-8') as csvfile:
                 csvwriter = csv.writer(csvfile)
-                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times)))
+                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times), runs))
             csvfile.close()
         else:
             with open(csvsummaryfilename, 'a', newline='\n', encoding='utf-8') as csvfile:
                 csvwriter = csv.writer(csvfile)
-                csvwriter.writerow(('File Size','Speed (MB/s) Normal', 'Speed (MB/s) Acclerated', 'Time (s) Normal', 'Time (s) Accelerated'))
-                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times)))
+                csvwriter.writerow(('File Size','Speed (MB/s) Normal', 'Speed (MB/s) Acclerated', 'Time (s) Normal', 'Time (s) Accelerated', "Runs"))
+                csvwriter.writerow((size, statistics.mean(norm_speed), statistics.mean(accel_speed), statistics.mean(norm_times), statistics.mean(accel_times), runs))
             csvfile.close()
     
     rows = zip(norm_times, accel_times, norm_speed, accel_speed)
