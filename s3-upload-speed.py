@@ -34,7 +34,7 @@ prevent any caching from impacting the metrics. There needs to be enough \
 disk space for the files, and beware that large numbers of large files will \
 take time to generate')
 
-@click.option('--bucket', default='p2vptpm-lcharnley-cenpro-12736', help='Name of Amazon S3 Bucket \
+@click.option('--bucket', default='s3-bucket', help='Name of Amazon S3 Bucket \
 name for upload test')
 
 @click.option('--loglevel', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
@@ -101,6 +101,8 @@ def summary(size, runs, norm_times, accel_times, norm_speed, accel_speed, csv_fi
     print('Average Time (s) (Accelerated): {}'.format(statistics.mean(accel_times)))
     print('Average Speed (MB/s) (Normal): {}'.format(statistics.mean(norm_speed)))
     print('Average Speed (MB/s) (Accelerated): {}'.format(statistics.mean(accel_speed)))
+    print('Normal Time Std Deviation: {}'.format(statistics.pstdev(norm_times)))
+    print('Normal Time variance: {}'.format(statistics.pvariance(norm_times)))
 
     #Output Descriptive Stats to CSV
     if csv_file:
